@@ -149,6 +149,16 @@
             </ng-template>
           </p>
         </ion-label>
+        <ion-button
+          fill="clear"
+          color="danger"
+          slot="end"
+          class="inline-delete-btn"
+          (click)="deleteTask(task.id)"
+          aria-label="Eliminar tarea"
+        >
+          <ion-icon name="trash-outline"></ion-icon>
+        </ion-button>
       </ion-item>
       <ion-item-options side="end" class="task-actions">
         <ion-item-option color="danger" (click)="deleteTask(task.id)">Eliminar</ion-item-option>
