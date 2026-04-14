@@ -1,0 +1,215 @@
+<ion-header [translucent]="true">
+  <ion-toolbar class="top-toolbar">
+    <ion-title>TaskFlow</ion-title>
+    <ion-buttons slot="end">
+      <ion-button fill="clear" aria-label="Buscar">
+        <ion-icon name="search-outline"></ion-icon>
+      </ion-button>
+      <ion-button fill="clear" *ngIf="categoriesEnabled$ | async" (click)="openCreateCategoryModal()" aria-label="Categorias">
+        <ion-icon name="pricetags-outline"></ion-icon>
+      </ion-button>
+      <ion-button fill="clear" aria-label="Configuracion">
+        <ion-icon name="settings-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <div class="app-shell">
+    <ion-card class="app-card welcome-card">
+      <ion-card-content>
+        <div class="welcome-title">👋 Hola, <strong>{{ userName }}</strong></div>
+        <div class="welcome-subtitle">Organiza tu dia de forma simple</div>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card class="app-card task-card main-task-card">
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="add-outline"></ion-icon>
+          Nueva tarea
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+      <ion-item class="form-item" lines="none">
+        <ion-input
+          label="Titulo"
+          labelPlacement="stacked"
+          placeholder="¿Que necesitas hacer hoy?"
+          [(ngModel)]="newTaskTitle"
+          maxlength="120"
+        ></ion-input>
+      </ion-item>
+
+      <ion-item class="form-item" lines="none" *ngIf="categoriesEnabled$ | async">
+        <ion-select
+          label="Categoria"
+          labelPlacement="stacked"
+          interface="popover"
+          [(ngModel)]="newTaskCategoryId"
+          [value]="newTaskCategoryId"
+          placeholder="Sin categoria"
+        >
+          <ion-select-option [value]="null">Sin categoria</ion-select-option>
+          <ion-select-option
+            *ngFor="let category of (categories$ | async); trackBy: trackCategory"
+            [value]="category.id"
+          >
+            {{ category.name }}
+          </ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <ion-button expand="block" class="ion-margin-top add-btn" (click)="addTask()">
+        <ion-icon name="add-circle-outline" slot="start"></ion-icon>
+        Crear tarea
+      </ion-button>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card class="app-card">
+      <ion-card-content>
+      <div class="section-title">
+        <ion-icon name="stats-chart-outline"></ion-icon>
+        Tu progreso
+      </div>
+      <ion-grid>
+        <ion-row>
+          <ion-col size="4" class="stat-card stat-total">
+            <div class="stat-label">Total</div>
+            <div class="stat-value">{{ (stats$ | async)?.total }}</div>
+          </ion-col>
+          <ion-col size="4" class="stat-card stat-pending">
+            <div class="stat-label">Pendientes</div>
+            <div class="stat-value">{{ (stats$ | async)?.pending }}</div>
+          </ion-col>
+          <ion-col size="4" class="stat-card stat-done">
+            <div class="stat-label">Completadas</div>
+            <div class="stat-value">{{ (stats$ | async)?.completed }}</div>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card class="app-card">
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="search-circle-outline"></ion-icon>
+          Filtros
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+      <ion-item class="form-item" lines="none">
+        <ion-input
+          label="Buscar"
+          labelPlacement="stacked"
+          placeholder="Buscar por titulo"
+          [value]="searchTerm"
+          (ionInput)="onSearchChange($event.detail.value ?? '')"
+        ></ion-input>
+      </ion-item>
+
+      <ion-item class="form-item" lines="none" *ngIf="categoriesEnabled$ | async">
+        <ion-select
+          label="Categoria"
+          labelPlacement="stacked"
+          interface="popover"
+          [value]="selectedCategoryFilter"
+          (ionChange)="onCategoryFilterChange($event.detail.value)"
+        >
+          <ion-select-option value="all">Todas</ion-select-option>
+          <ion-select-option value="none">Sin categoria</ion-select-option>
+          <ion-select-option
+            *ngFor="let category of (categories$ | async); trackBy: trackCategory"
+            [value]="category.id"
+          >
+            {{ category.name }}
+          </ion-select-option>
+        </ion-select>
+      </ion-item>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-list class="tasks-list">
+      <ion-item-sliding *ngFor="let task of (filteredTasks$ | async); trackBy: trackTask">
+      <ion-item class="task-item" lines="none" [class.completed-item]="task.completed">
+        <ion-checkbox class="task-check" slot="start" [checked]="task.completed" (ionChange)="toggleTask(task.id)"></ion-checkbox>
+        <ion-label class="task-label">
+          <h2 [class.task-done]="task.completed">{{ task.title }}</h2>
+          <p class="task-meta">
+            <ng-container *ngIf="task.categoryId && (categoryLookup$ | async) as lookup; else noCategory">
+              <ion-badge [style.--background]="lookup[task.categoryId]?.color || '#64748b'" color="light">
+                {{ lookup[task.categoryId]?.name || 'Categoria eliminada' }}
+              </ion-badge>
+            </ng-container>
+            <ng-template #noCategory>
+              <ion-badge color="medium">Sin categoria</ion-badge>
+            </ng-template>
+          </p>
+        </ion-label>
+      </ion-item>
+      <ion-item-options side="end" class="task-actions">
+        <ion-item-option color="danger" (click)="deleteTask(task.id)">Eliminar</ion-item-option>
+      </ion-item-options>
+      </ion-item-sliding>
+    </ion-list>
+
+    <div class="empty-state" *ngIf="(filteredTasks$ | async)?.length === 0">
+      <div class="empty-illustration">🧘‍♂️</div>
+      <div class="empty-title">Todo esta en orden</div>
+      <ion-note class="empty-note">
+        No tienes tareas pendientes.<br />
+        ¡Agrega una nueva y empieza a organizarte!
+      </ion-note>
+    </div>
+  </div>
+
+  <ion-modal [isOpen]="categoryModalOpen" (didDismiss)="closeCategoryModal()">
+    <ng-template>
+      <ion-header>
+        <ion-toolbar>
+          <ion-title>{{ editingCategoryId ? 'Editar categoria' : 'Nueva categoria' }}</ion-title>
+          <ion-buttons slot="end">
+            <ion-button (click)="closeCategoryModal()">Cerrar</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="ion-padding">
+        <ion-item class="form-item" lines="none">
+          <ion-input
+            label="Nombre"
+            labelPlacement="stacked"
+            placeholder="Ej. Trabajo"
+            [(ngModel)]="categoryName"
+            maxlength="50"
+          ></ion-input>
+        </ion-item>
+        <ion-item class="form-item color-item" lines="none">
+          <ion-label>Color</ion-label>
+          <input type="color" [(ngModel)]="categoryColor" />
+        </ion-item>
+        <ion-button expand="block" class="ion-margin-top" (click)="saveCategory()">
+          {{ editingCategoryId ? 'Actualizar categoria' : 'Crear categoria' }}
+        </ion-button>
+
+        <ion-list class="ion-margin-top">
+          <ion-list-header>
+            <ion-label>Categorias creadas</ion-label>
+          </ion-list-header>
+          <ion-item *ngFor="let category of (categories$ | async); trackBy: trackCategory">
+            <ion-label>
+              <span class="category-dot" [style.background]="category.color"></span>
+              {{ category.name }}
+            </ion-label>
+            <ion-button fill="clear" size="small" (click)="openEditCategoryModal(category)">Editar</ion-button>
+            <ion-button fill="clear" color="danger" size="small" (click)="confirmDeleteCategory(category.id)">
+              Eliminar
+            </ion-button>
+          </ion-item>
+        </ion-list>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+</ion-content>
